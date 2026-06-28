@@ -38,7 +38,7 @@ def get_diarize_model():
             )
         _diarize_model = Pipeline.from_pretrained(
             "pyannote/speaker-diarization-3.1",
-            use_auth_token=HF_TOKEN,
+            token=HF_TOKEN,
         )
     return _diarize_model
 
