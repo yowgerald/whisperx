@@ -6,6 +6,7 @@ from typing import Optional
 import whisperx
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import JSONResponse
+from pyannote.audio import Pipeline
 
 app = FastAPI(title="WhisperX CPU Transcription API")
 
@@ -35,7 +36,10 @@ def get_diarize_model():
                 "HF_TOKEN env var is required for diarization. "
                 "Accept the pyannote model terms on Hugging Face and set HF_TOKEN."
             )
-        _diarize_model = whisperx.DiarizationPipeline(use_auth_token=HF_TOKEN, device=DEVICE)
+        _diarize_model = Pipeline.from_pretrained(
+            "pyannote/speaker-diarization-3.1",
+            use_auth_token=HF_TOKEN,
+        )
     return _diarize_model
 
 

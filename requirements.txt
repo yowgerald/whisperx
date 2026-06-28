@@ -1,4 +1,5 @@
 whisperx
+pyannote.audio
 fastapi
 uvicorn[standard]
 python-multipart
