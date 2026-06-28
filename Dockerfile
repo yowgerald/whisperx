@@ -1,6 +1,8 @@
-# Python 3.11 chosen deliberately: WhisperX requires Python >=3.10,<3.14,
-# and 3.11 has the broadest, most stable wheel availability for torch/torchaudio.
+# Build:  docker build -t whisperx .
+# Build (GPU): docker build --build-arg TORCH_INDEX=https://download.pytorch.org/whl/cu121 -t whisperx .
 FROM python:3.11-slim
+
+ARG TORCH_INDEX=https://download.pytorch.org/whl/cpu
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -9,20 +11,14 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# ffmpeg: required for audio decoding
-# git: required by some pip installs that build from source
-# libsndfile1: required by audio processing libs (soundfile/torchaudio)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
     libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install CPU-only torch/torchaudio FIRST, from PyTorch's CPU wheel index.
-# Doing this before installing whisperx avoids pip accidentally pulling
-# in the much larger CUDA-enabled build.
 RUN pip install --upgrade pip && \
-    pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+    pip install torch torchaudio --index-url ${TORCH_INDEX}
 
 COPY requirements.txt /app/requirements.txt
 RUN pip install -r requirements.txt

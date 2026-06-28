@@ -1,19 +1,25 @@
 services:
   whisperx:
     build: .
-    container_name: whisperx-cpu
+    container_name: whisperx
     ports:
       - "5000:5000"
     environment:
       - HF_TOKEN=${HF_TOKEN}
       - WHISPER_MODEL=${WHISPER_MODEL:-medium}
-      - COMPUTE_TYPE=${COMPUTE_TYPE:-int8}
+      - COMPUTE_TYPE=${COMPUTE_TYPE:-}
     volumes:
-      # Persists downloaded models across container restarts/redeploys
       - whisperx-models:/app/.cache/huggingface
     restart: unless-stopped
-    # CPU-only: no GPU reservation block needed. If you ever move this to a
-    # GPU host, add a deploy.resources.reservations.devices block here.
+    # GPU deployment: uncomment the lines below and rebuild with:
+    #   docker compose build --build-arg TORCH_INDEX=https://download.pytorch.org/whl/cu121
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
 
 volumes:
   whisperx-models:
