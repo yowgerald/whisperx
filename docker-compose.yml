@@ -1,0 +1,19 @@
+services:
+  whisperx:
+    build: .
+    container_name: whisperx-cpu
+    ports:
+      - "8000:8000"
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - WHISPER_MODEL=${WHISPER_MODEL:-medium}
+      - COMPUTE_TYPE=${COMPUTE_TYPE:-int8}
+    volumes:
+      # Persists downloaded models across container restarts/redeploys
+      - whisperx-models:/app/.cache/huggingface
+    restart: unless-stopped
+    # CPU-only: no GPU reservation block needed. If you ever move this to a
+    # GPU host, add a deploy.resources.reservations.devices block here.
+
+volumes:
+  whisperx-models:
