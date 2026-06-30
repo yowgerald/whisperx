@@ -49,7 +49,7 @@ def get_diarize_model():
                 "HF_TOKEN env var is required for diarization. "
                 "Accept the pyannote model terms on Hugging Face and set HF_TOKEN."
             )
-        _diarize_model = DiarizationPipeline(token=HF_TOKEN, device=DEVICE)
+        _diarize_model = DiarizationPipeline(use_auth_token=HF_TOKEN, device=DEVICE)
     return _diarize_model
 
 
