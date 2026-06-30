@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Verify torch still CUDA-capable (pip must not swap base image's CUDA torch for CPU build)
-RUN python -c "import torch; assert torch.cuda.is_available(), 'CUDA torch lost! pip may have downgraded it.'; print(f'torch {torch.__version__} + CUDA ok')"
+# Verify torch still CUDA-built (pip must not swap base image's CUDA torch for CPU build)
+RUN python -c "import torch; assert torch.version.cuda is not None, 'CUDA torch lost!'; print(f'torch {torch.__version__} + CUDA {torch.version.cuda} OK')"
 
 COPY transcribe_core.py /app/transcribe_core.py
 COPY rp_handler.py /app/rp_handler.py
