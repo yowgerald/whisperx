@@ -1,9 +1,9 @@
-FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.0-devel-ubuntu22.04
+FROM runpod/pytorch:1.0.7-cu1290-torch271-ubuntu2204
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DEFAULT_TIMEOUT=600 \
-    HF_HOME=/app/.cache/huggingface
+    HF_HOME=/runpod-volume/huggingface
 
 WORKDIR /app
 
@@ -15,6 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# Verify torch still CUDA-capable (pip must not swap base image's CUDA torch for CPU build)
+RUN python -c "import torch; assert torch.cuda.is_available(), 'CUDA torch lost! pip may have downgraded it.'; print(f'torch {torch.__version__} + CUDA ok')"
 
 COPY transcribe_core.py /app/transcribe_core.py
 COPY rp_handler.py /app/rp_handler.py

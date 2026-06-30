@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from typing import Optional
 
@@ -73,12 +74,19 @@ def handler(job):
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         audio_path = tmp.name
         try:
-            with urllib.request.urlopen(audio_url, timeout=300) as resp:
+            req = urllib.request.Request(audio_url, headers={"User-Agent": "whisperx-runpod/1.0"})
+            with urllib.request.urlopen(req, timeout=300) as resp:
+                if resp.status != 200:
+                    os.remove(audio_path)
+                    return {"error": f"Failed to download audio: HTTP {resp.status}"}
                 with open(audio_path, "wb") as f:
                     shutil.copyfileobj(resp, f)
-        except Exception:
+        except urllib.error.URLError as e:
             os.remove(audio_path)
-            raise
+            return {"error": f"Failed to download audio: {e.reason}"}
+        except Exception as e:
+            os.remove(audio_path)
+            return {"error": f"Failed to download audio: {str(e)}"}
 
     try:
         _log(f"transcribing {audio_path} (diarize={diarize}, language={language or 'auto'})")
@@ -106,6 +114,9 @@ def handler(job):
                 "language": result["language"],
                 "segments": result["segments"],
             }
+    except Exception as e:
+        _log(f"transcription failed: {str(e)}")
+        return {"error": f"Transcription failed: {str(e)}"}
     finally:
         os.remove(audio_path)
         _log("cleaned up temp file")
