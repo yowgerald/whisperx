@@ -1,5 +1,7 @@
 import os
+import shutil
 import tempfile
+import time
 import urllib.request
 from typing import Optional
 
@@ -17,7 +19,14 @@ from transcribe_core import (
 )
 
 # Preload models at module level so they stay warm in GPU VRAM across jobs.
+print(f"[startup] device={DEVICE} model={MODEL_SIZE} compute={COMPUTE_TYPE} "
+      f"diarization={'enabled' if HF_TOKEN else 'disabled (no HF_TOKEN)'}")
 preload_models()
+print("[startup] models loaded, worker ready")
+
+
+def _log(msg: str) -> None:
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}")
 
 
 def handler(job):
@@ -44,6 +53,10 @@ def handler(job):
         return {"error": "Missing required field: audio_url"}
 
     diarize = job_input.get("diarize", True)
+    if diarize and not HF_TOKEN:
+        _log("diarization requested but HF_TOKEN not set — disabling diarization")
+        diarize = False
+
     min_speakers = job_input.get("min_speakers")
     max_speakers = job_input.get("max_speakers")
     language = job_input.get("language")
@@ -56,11 +69,20 @@ def handler(job):
 
     # Download audio file
     suffix = os.path.splitext(audio_url.split("/")[-1].split("?")[0])[1] or ".wav"
+    _log(f"downloading from {audio_url}")
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         audio_path = tmp.name
-        urllib.request.urlretrieve(audio_url, audio_path)
+        try:
+            with urllib.request.urlopen(audio_url, timeout=300) as resp:
+                with open(audio_path, "wb") as f:
+                    shutil.copyfileobj(resp, f)
+        except Exception:
+            os.remove(audio_path)
+            raise
 
     try:
+        _log(f"transcribing {audio_path} (diarize={diarize}, language={language or 'auto'})")
+        t0 = time.time()
         result = transcribe_audio(
             audio_path,
             diarize=diarize,
@@ -69,6 +91,8 @@ def handler(job):
             language=language,
             batch_size=batch_size,
         )
+        _log(f"transcription done in {time.time() - t0:.1f}s, "
+             f"language={result['language']}, segments={len(result['segments'])}")
 
         # Format response
         if response_format == "srt":
@@ -84,6 +108,7 @@ def handler(job):
             }
     finally:
         os.remove(audio_path)
+        _log("cleaned up temp file")
 
 
 if __name__ == "__main__":

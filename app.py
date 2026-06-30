@@ -43,6 +43,9 @@ async def transcribe(
     max_duration: float = Form(8.0),
     speaker_format: str = Form("inline"),
 ):
+    if diarize and not HF_TOKEN:
+        diarize = False
+
     suffix = os.path.splitext(file.filename or "audio")[1] or ".wav"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(await file.read())

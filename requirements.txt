@@ -3,5 +3,4 @@ pyannote.audio==3.3.2
 fastapi
 uvicorn[standard]
 python-multipart
-matplotlib
 runpod>=1.7.0
