@@ -4,3 +4,4 @@ fastapi
 uvicorn[standard]
 python-multipart
 matplotlib
+runpod>=1.7.0
