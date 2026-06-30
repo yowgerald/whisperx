@@ -3,15 +3,20 @@ import os
 import tempfile
 from typing import Optional
 
-import omegaconf
 import torch
-import whisperx
 
-# PyTorch 2.6+ defaults to weights_only=True for torch.load.
-# pyannote.audio 3.3.2 checkpoints contain omegaconf.ListConfig objects
-# which are not in the default safe globals list.
-if hasattr(torch.serialization, "add_safe_globals"):
-    torch.serialization.add_safe_globals([omegaconf.listconfig.ListConfig])
+# PyTorch 2.6+ defaults torch.load to weights_only=True.
+# pyannote.audio 3.3.2 checkpoints contain omegaconf objects not in
+# the safe globals list. HuggingFace checkpoints are trusted here.
+_original_torch_load = torch.load
+
+def _patched_torch_load(*args, **kwargs):
+    kwargs.setdefault("weights_only", False)
+    return _original_torch_load(*args, **kwargs)
+
+torch.load = _patched_torch_load
+
+import whisperx
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import JSONResponse, Response
 from whisperx.diarize import DiarizationPipeline
