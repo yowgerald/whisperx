@@ -17,17 +17,14 @@ COPY requirements.txt /app/requirements.txt
 
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# torchvision 0.22.x _meta_registrations.py references torchvision.extension
-# before it's available (extension C module fails to load or import order issue).
-# Patch: guard with getattr so import doesn't crash when extension is missing.
-# Must NOT import torchvision (would trigger the crash). Find file via site-packages.
-COPY patch_torchvision.py /tmp/patch_torchvision.py
-RUN python /tmp/patch_torchvision.py && rm /tmp/patch_torchvision.py
+# Reinstall PyTorch family from consistent index so torchvision C++ extensions
+# match the torch build (fixes "operator torchvision::nms does not exist")
+RUN pip install --upgrade --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 
 # Verify torch still CUDA-built (pip must not swap base image's CUDA torch for CPU build)
 RUN python -c "import torch; assert torch.version.cuda is not None, 'CUDA torch lost!'; print(f'torch {torch.__version__} + CUDA {torch.version.cuda} OK')"
 
-# Verify torchvision imports cleanly (no circular import in _meta_registrations)
+# Verify torchvision imports cleanly
 RUN python -c "import torchvision; print(f'torchvision {torchvision.__version__} OK')"
 
 COPY transcribe_core.py /app/transcribe_core.py
