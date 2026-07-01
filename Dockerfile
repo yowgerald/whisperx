@@ -21,21 +21,20 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 # before it's available (extension C module fails to load or import order issue).
 # Patch: guard with getattr so import doesn't crash when extension is missing.
 # Must NOT import torchvision (would trigger the crash). Find file via site-packages.
-RUN python -c "
-import pathlib as _pl, site as _site
+RUN echo 'import pathlib as _pl, site as _site
 for _sp in _site.getsitepackages():
-    _f = _pl.Path(_sp) / 'torchvision' / '_meta_registrations.py'
+    _f = _pl.Path(_sp) / "torchvision" / "_meta_registrations.py"
     if _f.exists():
         src = _f.read_text()
-        old = 'torchvision.extension._has_ops()'
-        new = 'getattr(torchvision, \"extension\", None) is not None and torchvision.extension._has_ops()'
+        old = "torchvision.extension._has_ops()"
+        new = "getattr(torchvision, \"extension\", None) is not None and torchvision.extension._has_ops()"
         if old in src and new not in src:
             _f.write_text(src.replace(old, new))
-            print('patched _meta_registrations.py')
+            print("patched _meta_registrations.py")
         else:
-            print('_meta_registrations.py already patched or pattern not found')
+            print("_meta_registrations.py already patched or pattern not found")
         break
-"
+' > /tmp/patch_tv.py && python /tmp/patch_tv.py && rm /tmp/patch_tv.py
 
 # Verify torch still CUDA-built (pip must not swap base image's CUDA torch for CPU build)
 RUN python -c "import torch; assert torch.version.cuda is not None, 'CUDA torch lost!'; print(f'torch {torch.__version__} + CUDA {torch.version.cuda} OK')"
