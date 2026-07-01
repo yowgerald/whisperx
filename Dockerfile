@@ -15,14 +15,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt /app/requirements.txt
 
-# whisperx deps pull torchvision from PyPI → circular import in _meta_registrations
-# (torchvision.extension not yet initialized when _meta_registrations references it).
-# Overwrite with CUDA-index torchvision/torchaudio (matching base torch 2.7.1).
-# --no-deps --force-reinstall keeps base image's CUDA torch untouched.
-RUN pip install --upgrade pip && pip install -r requirements.txt && \
-    pip install --no-deps --force-reinstall \
-      torchvision==0.22.1+cu128 torchaudio==2.7.1+cu128 \
-      --extra-index-url https://download.pytorch.org/whl/cu128
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# torchvision 0.22.x _meta_registrations.py references torchvision.extension
+# before it's available (extension C module fails to load or import order issue).
+# Patch: guard with getattr so import doesn't crash when extension is missing.
+# Must NOT import torchvision (would trigger the crash). Find file via site-packages.
+RUN python -c "
+import pathlib as _pl, site as _site
+for _sp in _site.getsitepackages():
+    _f = _pl.Path(_sp) / 'torchvision' / '_meta_registrations.py'
+    if _f.exists():
+        src = _f.read_text()
+        old = 'torchvision.extension._has_ops()'
+        new = 'getattr(torchvision, \"extension\", None) is not None and torchvision.extension._has_ops()'
+        if old in src and new not in src:
+            _f.write_text(src.replace(old, new))
+            print('patched _meta_registrations.py')
+        else:
+            print('_meta_registrations.py already patched or pattern not found')
+        break
+"
 
 # Verify torch still CUDA-built (pip must not swap base image's CUDA torch for CPU build)
 RUN python -c "import torch; assert torch.version.cuda is not None, 'CUDA torch lost!'; print(f'torch {torch.__version__} + CUDA {torch.version.cuda} OK')"
