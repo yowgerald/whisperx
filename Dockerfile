@@ -19,7 +19,7 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Reinstall PyTorch family from consistent index so torchvision C++ extensions
 # match the torch build (fixes "operator torchvision::nms does not exist")
-RUN pip install --upgrade --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+RUN pip install --upgrade --force-reinstall torch torchvision --index-url https://download.pytorch.org/whl/cu128
 
 # Verify torch still CUDA-built (pip must not swap base image's CUDA torch for CPU build)
 RUN python -c "import torch; assert torch.version.cuda is not None, 'CUDA torch lost!'; print(f'torch {torch.__version__} + CUDA {torch.version.cuda} OK')"
