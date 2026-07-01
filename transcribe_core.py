@@ -16,8 +16,24 @@ def _patched_torch_load(*args, **kwargs):
 
 torch.load = _patched_torch_load
 
-import whisperx
-from whisperx.diarize import DiarizationPipeline
+# torchaudio >= 2.7 removed AudioMetaData. pyannote.audio 3.3.2 still
+# references it in type annotations. Restore it as a compat shim so the
+# import doesn't crash.
+import torchaudio  # noqa: E402
+if not hasattr(torchaudio, "AudioMetaData"):
+    try:
+        from torchaudio.backend.common import AudioMetaData  # noqa: E402
+        torchaudio.AudioMetaData = AudioMetaData
+    except ImportError:
+        from typing import NamedTuple  # noqa: E402
+        torchaudio.AudioMetaData = NamedTuple(
+            "AudioMetaData",
+            [("sample_rate", int), ("num_frames", int), ("num_channels", int),
+             ("bits_per_sample", int), ("encoding", str)],
+        )
+
+import whisperx  # noqa: E402
+from whisperx.diarize import DiarizationPipeline  # noqa: E402
 
 # --- Device / compute config ---
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
